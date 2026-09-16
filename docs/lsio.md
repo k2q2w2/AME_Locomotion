@@ -110,6 +110,8 @@ CPU 测试（网络测试只需要本地 RSL-RL 依赖；原生历史测试还�
 PYTHONPATH="$PWD/rsl_rl" python -m pytest -q tests/test_lsio.py tests/test_lsio_history.py
 ```
 
+本次 CPU 验证结果：**21 项通过**，包括两轮 PPO 更新、保存/恢复后推理完全一致及恢复后继续更新。
+
 覆盖网络维度及全局分支、双历史路径、有限梯度、完整历史存储/打乱、CPU 合成环境 PPO 更新与恢复，
 以及真实 `pretrained/ame1.pt`、`pretrained/ame2.pt` 在旧网络中的加载。
 历史测试使用安装版本的原生观测管理器与缓冲区，输入为合成传感器值；

@@ -66,6 +66,10 @@ datasets
 
 # Tests
 tests/
+!/tests/
+/tests/*
+!/tests/test_lsio.py
+!/tests/test_lsio_history.py
 
 # Docker history
 .isaac-lab-docker-history

@@ -51,5 +51,3 @@ def make_lsio_observations(observations):
     result.proprio_history.enable_corruption = source.enable_corruption
     result.critic = deepcopy(observations.critic)
     return result
-
-
