@@ -61,7 +61,7 @@ class ActorCriticEncoder(nn.Module):
             num_critic_obs += obs[obs_group].shape[-1]
 
         map_scan_size = self.L * self.W * self.coord_dim
-        actor_proprio_dim = num_actor_obs - map_scan_size
+        actor_proprio_dim = self._actor_proprio_size(num_actor_obs - map_scan_size)
         critic_proprio_dim = num_critic_obs - map_scan_size
         if actor_proprio_dim <= 0 or critic_proprio_dim <= 0:
             raise ValueError(
@@ -117,6 +117,10 @@ class ActorCriticEncoder(nn.Module):
         self.distribution = None
         Normal.set_default_validate_args(False)
 
+    def _actor_proprio_size(self, observation_dim):
+        """Size of the actor representation before concatenating terrain features."""
+        return observation_dim
+
     def _build_terrain_encoder(self, actor_proprio_dim, critic_proprio_dim, attach_global):
         """Build terrain encoder modules shared by actor and critic."""
         if not self.cnn_downsample:
@@ -154,7 +158,7 @@ class ActorCriticEncoder(nn.Module):
             f"MHA dim={self.mha_dim}, heads={self.num_heads}"
         )
 
-    def _encode_terrain(self, obs):
+    def _encode_terrain(self, obs, *, role="actor"):
         """Encode terrain/map observations into attention-ready features."""
         # Extract map scan from the tail of observation.
         # Stored order and reshape order differ, so swap W/L in reshape to keep spatial alignment.
@@ -184,15 +188,12 @@ class ActorCriticEncoder(nn.Module):
         
         # Extract proprioceptive features (all non-map terms)
         proprio_obs = obs[:, :-self.L * self.W * self.coord_dim]
-        if proprio_obs.shape[1] == self.actor_proprio_dim:
+        if role == "actor":
             proprio_embedding = self.actor_proprio_embedding(proprio_obs)
-        elif proprio_obs.shape[1] == self.critic_proprio_dim:
+        elif role == "critic":
             proprio_embedding = self.critic_proprio_embedding(proprio_obs)
         else:
-            raise ValueError(
-                f"proprio_obs dimension {proprio_obs.shape[1]} does not match actor_proprio_dim {self.actor_proprio_dim} "
-                f"or critic_proprio_dim {self.critic_proprio_dim}"
-            )
+            raise ValueError(f"Unknown terrain encoder role: {role}")
 
         if self.attach_global:
             global_features = self.global_encoder(local_features)
@@ -268,7 +269,7 @@ class ActorCriticEncoder(nn.Module):
     def evaluate(self, obs, **kwargs):
         critic_obs = self.get_critic_obs(obs)
         critic_obs = self.critic_obs_normalizer(critic_obs)
-        encoded_obs, _ = self._encode_terrain(critic_obs)
+        encoded_obs, _ = self._encode_terrain(critic_obs, role="critic")
         value = self.critic(encoded_obs)
         if torch.isnan(value).any() or torch.isinf(value).any():
             print(f"Warning: critic value contains NaN or Inf, {value}")

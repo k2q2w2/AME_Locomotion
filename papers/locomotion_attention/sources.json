@@ -1,0 +1,54 @@
+[
+  {
+    "label": "AME1",
+    "title": "Attention-Based Map Encoding for Learning Generalized Legged Locomotion",
+    "arxiv_id": "2506.09588",
+    "version": "v1",
+    "downloaded_on": "2026-09-17",
+    "pdf_file": "AME1_2506.09588.pdf",
+    "pages": 18,
+    "bytes": 38179242,
+    "sha256": "bc4644955c009d2e1c68b7b6f50505d76c45c3f74e2127fa8916459e13b46c6c",
+    "source_url": "https://arxiv.org/abs/2506.09588v1",
+    "pdf_url": "https://arxiv.org/pdf/2506.09588v1"
+  },
+  {
+    "label": "AME2",
+    "title": "Agile and Generalized Legged Locomotion via Attention-Based Neural Map Encoding",
+    "arxiv_id": "2601.08485",
+    "version": "v3",
+    "downloaded_on": "2026-09-17",
+    "pdf_file": "AME2_2601.08485.pdf",
+    "pages": 21,
+    "bytes": 44768874,
+    "sha256": "9a25052f4dcbf7bdccf1250ecee7e51c01f388fe31e31f09cafe4f32a8bd16d2",
+    "source_url": "https://arxiv.org/abs/2601.08485v3",
+    "pdf_url": "https://arxiv.org/pdf/2601.08485v3"
+  },
+  {
+    "label": "GLAD",
+    "title": "Global-Local Attention Decomposition for Terrain Encoding in Humanoid Perceptive Locomotion",
+    "arxiv_id": "2606.00637",
+    "version": "v3",
+    "downloaded_on": "2026-09-17",
+    "pdf_file": "GLAD_2606.00637.pdf",
+    "pages": 9,
+    "bytes": 3475427,
+    "sha256": "a8c2f7ca0bd66231bc3e6365bb2e97a29c309fe12fca8d6f61d6c04b059f9792",
+    "source_url": "https://arxiv.org/abs/2606.00637v3",
+    "pdf_url": "https://arxiv.org/pdf/2606.00637v3"
+  },
+  {
+    "label": "TAGA",
+    "title": "TAGA: Terrain-aware Active Gaze Learning for Generalizable Agile Humanoid Locomotion",
+    "arxiv_id": "2606.05880",
+    "version": "v1",
+    "downloaded_on": "2026-09-17",
+    "pdf_file": "TAGA_2606.05880.pdf",
+    "pages": 18,
+    "bytes": 15126155,
+    "sha256": "85fd40f1e3bf40c4cf6c02296b9eacbc57019b9350bf71abaaa837ba7be42d21",
+    "source_url": "https://arxiv.org/abs/2606.05880v1",
+    "pdf_url": "https://arxiv.org/pdf/2606.05880v1"
+  }
+]

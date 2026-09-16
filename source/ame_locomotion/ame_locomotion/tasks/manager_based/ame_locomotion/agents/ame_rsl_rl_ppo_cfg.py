@@ -36,3 +36,25 @@ class G1AMEPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         desired_kl=0.01,
         max_grad_norm=1.0,
     )
+
+
+@configclass
+class LSIOActorCriticCfg(RslRlPpoActorCriticCfg):
+    class_name: str = "ActorCriticEncoderLSIO"
+    long_history_length: int = 66
+    short_history_length: int = 4
+    attach_global: bool = False
+
+
+@configclass
+class G1AMELSIOPPORunnerCfg(G1AMEPPORunnerCfg):
+    experiment_name = "g1_ame_lsio"
+    obs_groups = {"policy": ["policy"], "critic": ["critic"], "history": ["proprio_history"]}
+    policy = LSIOActorCriticCfg(
+        init_noise_std=1.0,
+        actor_obs_normalization=False,
+        critic_obs_normalization=False,
+        actor_hidden_dims=[512, 256, 128],
+        critic_hidden_dims=[512, 256, 128],
+        activation="elu",
+    )

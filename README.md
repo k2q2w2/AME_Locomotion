@@ -23,6 +23,9 @@ AME 的主要网络实现在:
 
 - [rsl_rl/rsl_rl/modules/actor_critic_encoder.py](rsl_rl/rsl_rl/modules/actor_critic_encoder.py)
 
+新增 Actor 双历史任务 `AME-G1-29DOF-LSIO-v0` / `AME-G1-29DOF-LSIO-Play-v0`，
+参见 [LSIO 启动、网络结构与验证说明](docs/lsio.md)。原 AME 任务及检查点保持兼容。
+
 该文件包含:
 
 - 地形图卷积特征提取
