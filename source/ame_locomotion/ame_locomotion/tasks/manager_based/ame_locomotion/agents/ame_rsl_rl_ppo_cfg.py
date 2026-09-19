@@ -79,3 +79,37 @@ class G1AMEGLADPPORunnerCfg(G1AMELSIOPPORunnerCfg):
         critic_hidden_dims=[512, 256, 128],
         activation="elu",
     )
+
+
+@configclass
+class AMECriticStopGradActorCriticCfg(RslRlPpoActorCriticCfg):
+    critic_encoder_stop_grad: bool = True
+    attach_global: bool = False
+
+
+@configclass
+class LSIOCriticStopGradActorCriticCfg(LSIOActorCriticCfg):
+    critic_encoder_stop_grad: bool = True
+
+
+@configclass
+class GLADCriticStopGradActorCriticCfg(GLADActorCriticCfg):
+    critic_encoder_stop_grad: bool = True
+
+
+@configclass
+class G1AMECriticStopGradPPORunnerCfg(G1AMEPPORunnerCfg):
+    experiment_name = "g1_ame_critic_stop_grad"
+    policy = AMECriticStopGradActorCriticCfg(**G1AMEPPORunnerCfg().policy.to_dict())
+
+
+@configclass
+class G1AMELSIOCriticStopGradPPORunnerCfg(G1AMELSIOPPORunnerCfg):
+    experiment_name = "g1_ame_lsio_critic_stop_grad"
+    policy = LSIOCriticStopGradActorCriticCfg(**G1AMELSIOPPORunnerCfg().policy.to_dict())
+
+
+@configclass
+class G1AMEGLADCriticStopGradPPORunnerCfg(G1AMEGLADPPORunnerCfg):
+    experiment_name = "g1_ame_glad_critic_stop_grad"
+    policy = GLADCriticStopGradActorCriticCfg(**G1AMEGLADPPORunnerCfg().policy.to_dict())

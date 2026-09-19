@@ -241,6 +241,7 @@ Our implementation mostly follows the paper design, with three small adjustments
 
 ### Key Files
 
+- Critic encoder stop-gradient ablations (AME / LSIO / GLAD): [tasks and training commands](docs/critic_stop_grad.md)
 - AME encoder: [rsl_rl/rsl_rl/modules/actor_critic_encoder.py](rsl_rl/rsl_rl/modules/actor_critic_encoder.py)
 - Training script: [run_train.sh](run_train.sh)
 - Play script: [run_play.sh](run_play.sh)

@@ -300,6 +300,9 @@ class OnPolicyRunner:
             "iter": self.current_learning_iteration,
             "infos": infos,
         }
+        if getattr(self.alg.policy, "critic_encoder_stop_grad", False):
+            saved_dict["critic_encoder_stop_grad"] = True
+            saved_dict["critic_feature_source"] = "actor"
         # -- Save RND model if used
         if hasattr(self.alg, "rnd") and self.alg.rnd:
             saved_dict["rnd_state_dict"] = self.alg.rnd.state_dict()
@@ -312,6 +315,21 @@ class OnPolicyRunner:
 
     def load(self, path: str, load_optimizer: bool = True, map_location: str | None = None):
         loaded_dict = torch.load(path, weights_only=False, map_location=map_location)
+        # Validate before changing any model, optimizer, or iteration state.
+        checkpoint_stop_grad = loaded_dict.get("critic_encoder_stop_grad", False)
+        policy_stop_grad = getattr(self.alg.policy, "critic_encoder_stop_grad", False)
+        if checkpoint_stop_grad != policy_stop_grad:
+            raise ValueError(
+                "Checkpoint critic_encoder_stop_grad mode mismatch: "
+                f"checkpoint={checkpoint_stop_grad}, task={policy_stop_grad}. "
+                "Use a checkpoint from the same training mode and configuration; "
+                "legacy checkpoints without this field use False."
+            )
+        if policy_stop_grad and loaded_dict.get("critic_feature_source") != "actor":
+            raise ValueError(
+                "Checkpoint critic_feature_source mismatch: this task requires 'actor'. "
+                "Older CriticStopGrad checkpoints used a separate Critic query and cannot be resumed."
+            )
         # -- Load model
         resumed_training = self.alg.policy.load_state_dict(loaded_dict["model_state_dict"])
         # -- Load RND model if used

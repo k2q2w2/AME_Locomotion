@@ -3,6 +3,7 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 from torch.distributions import Normal
+from torch.func import functional_call
 
 from rsl_rl.networks import EmpiricalNormalization, MLP
 
@@ -29,6 +30,7 @@ class ActorCriticEncoder(nn.Module):
         num_heads=16,  # Number of attention heads
         cnn_downsample=True,
         attach_global=False,  # Add max-pooled global feature to query and policy input
+        critic_encoder_stop_grad=False,
         **kwargs,
     ):
         if kwargs:
@@ -44,6 +46,7 @@ class ActorCriticEncoder(nn.Module):
         self.L, self.W, self.coord_dim = map_scan_dim
         self.cnn_downsample = cnn_downsample
         self.attach_global = attach_global
+        self.critic_encoder_stop_grad = critic_encoder_stop_grad
 
         # Option A: concatenate coordinates to CNN features
         # self.cnn_output_dim = mha_dim - 3  # d-3
@@ -73,6 +76,10 @@ class ActorCriticEncoder(nn.Module):
         self.critic_proprio_dim = critic_proprio_dim
 
         self._build_terrain_encoder(self.actor_proprio_dim, self.critic_proprio_dim, self.attach_global)
+        if self.critic_encoder_stop_grad:
+            # Retain the legacy state_dict layout, but this projection is unused
+            # when the Critic consumes detached Actor features.
+            self.critic_proprio_embedding.requires_grad_(False)
 
         actor_input_dim = mha_dim + self.actor_proprio_dim
         critic_input_dim = mha_dim + self.critic_proprio_dim
@@ -158,7 +165,14 @@ class ActorCriticEncoder(nn.Module):
             f"MHA dim={self.mha_dim}, heads={self.num_heads}"
         )
 
-    def _encode_terrain(self, obs, *, role="actor"):
+    def _encode_map(self, height_map, *, update_buffers=True):
+        """Use batch statistics without persistent writes for value-only calls."""
+        if update_buffers:
+            return self.map_cnn(height_map)
+        buffers = {name: buffer.clone() for name, buffer in self.map_cnn.named_buffers()}
+        return functional_call(self.map_cnn, buffers, (height_map,), strict=False)
+
+    def _encode_terrain(self, obs, *, role="actor", update_buffers=True):
         """Encode terrain/map observations into attention-ready features."""
         # Extract map scan from the tail of observation.
         # Stored order and reshape order differ, so swap W/L in reshape to keep spatial alignment.
@@ -170,7 +184,7 @@ class ActorCriticEncoder(nn.Module):
         height_map = map_scan
 
         height_map = height_map.permute(0, 3, 1, 2)
-        cnn_features = self.map_cnn(height_map)
+        cnn_features = self._encode_map(height_map, update_buffers=update_buffers)
         if not self.cnn_downsample:
             cnn_features = cnn_features.permute(0, 2, 3, 1).reshape(-1, self.L * self.W, self.cnn_output_dim)
         else:
@@ -253,6 +267,8 @@ class ActorCriticEncoder(nn.Module):
         else:
             raise ValueError(f"Unknown standard deviation type: {self.noise_std_type}. Should be 'scalar' or 'log'")
         self.distribution = Normal(mean, std)
+        # Both encoder variants pack terrain features before Actor proprioception.
+        return encoded_obs[:, :-self.actor_proprio_dim]
 
     def act(self, obs, **kwargs):
         actor_obs = self.get_actor_obs(obs)
@@ -260,16 +276,45 @@ class ActorCriticEncoder(nn.Module):
         self.update_distribution(actor_obs)
         return self.distribution.sample()
 
+    def act_and_evaluate(self, obs, **kwargs):
+        """Sample an action and reuse that same encoding for the ablation value."""
+        if not self.critic_encoder_stop_grad:
+            return self.act(obs, **kwargs), self.evaluate(obs, **kwargs)
+        actor_obs = self.actor_obs_normalizer(self.get_actor_obs(obs))
+        terrain_features = self.update_distribution(actor_obs)
+        actions = self.distribution.sample()
+        return actions, self.evaluate(obs, actor_terrain_features=terrain_features)
+
     def act_inference(self, obs):
         actor_obs = self.get_actor_obs(obs)
         actor_obs = self.actor_obs_normalizer(actor_obs)
         encoded_obs, attention_weights = self._encode_terrain(actor_obs)
         return self.actor(encoded_obs), attention_weights
 
-    def evaluate(self, obs, **kwargs):
+    def evaluate(self, obs, actor_terrain_features=None, **kwargs):
+        """Evaluate privileged state using either Actor features or the original Critic encoder.
+
+        Explicit features must come from the current observations. No feature
+        cache is kept: standalone/bootstrap calls encode the Actor observations
+        under no_grad, preserving train/eval behavior without writing BN state.
+        """
         critic_obs = self.get_critic_obs(obs)
         critic_obs = self.critic_obs_normalizer(critic_obs)
-        encoded_obs, _ = self._encode_terrain(critic_obs, role="critic")
+        if self.critic_encoder_stop_grad:
+            if actor_terrain_features is None:
+                with torch.no_grad():
+                    actor_obs = self.actor_obs_normalizer(self.get_actor_obs(obs))
+                    actor_encoded, _ = self._encode_terrain(actor_obs, update_buffers=False)
+                    actor_terrain_features = actor_encoded[:, :-self.actor_proprio_dim]
+            expected_shape = (critic_obs.shape[0], self.mha_dim * (2 if self.attach_global else 1))
+            if tuple(actor_terrain_features.shape) != expected_shape:
+                raise ValueError(f"Actor terrain features must have shape {expected_shape}.")
+            critic_proprio = critic_obs[:, :-self.L * self.W * self.coord_dim]
+            encoded_obs = torch.cat((actor_terrain_features.detach(), critic_proprio), dim=-1)
+        else:
+            if actor_terrain_features is not None:
+                raise ValueError("Actor terrain features require critic_encoder_stop_grad=True.")
+            encoded_obs, _ = self._encode_terrain(critic_obs, role="critic")
         value = self.critic(encoded_obs)
         if torch.isnan(value).any() or torch.isinf(value).any():
             print(f"Warning: critic value contains NaN or Inf, {value}")

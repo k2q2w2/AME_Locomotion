@@ -67,10 +67,12 @@ class ActorCriticEncoderGLAD(ActorCriticEncoderLSIO):
             selected = selected * gate.unsqueeze(-1)
         return selected, indices
 
-    def _encode_terrain(self, obs, *, role="actor"):
+    def _encode_terrain(self, obs, *, role="actor", update_buffers=True):
         map_size = self.L * self.W * self.coord_dim
         map_scan = obs[:, -map_size:].reshape(-1, self.W, self.L, self.coord_dim)
-        local_features = self.map_cnn(map_scan.permute(0, 3, 1, 2)).flatten(2).transpose(1, 2)
+        local_features = self._encode_map(
+            map_scan.permute(0, 3, 1, 2), update_buffers=update_buffers,
+        ).flatten(2).transpose(1, 2)
         proprio_obs = obs[:, :-map_size]
         if role == "actor":
             proprio_embedding = self.actor_proprio_embedding(proprio_obs)

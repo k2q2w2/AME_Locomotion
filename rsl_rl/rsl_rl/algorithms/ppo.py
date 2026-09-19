@@ -130,8 +130,13 @@ class PPO:
         if self.policy.is_recurrent:
             self.transition.hidden_states = self.policy.get_hidden_states()
         # compute the actions and values
-        self.transition.actions = self.policy.act(obs).detach()
-        self.transition.values = self.policy.evaluate(obs).detach()
+        if getattr(self.policy, "critic_encoder_stop_grad", False):
+            actions, values = self.policy.act_and_evaluate(obs)
+            self.transition.actions = actions.detach()
+            self.transition.values = values.detach()
+        else:
+            self.transition.actions = self.policy.act(obs).detach()
+            self.transition.values = self.policy.evaluate(obs).detach()
         self.transition.actions_log_prob = self.policy.get_actions_log_prob(self.transition.actions).detach()
         self.transition.action_mean = self.policy.action_mean.detach()
         self.transition.action_sigma = self.policy.action_std.detach()
@@ -245,11 +250,15 @@ class PPO:
 
             # Recompute actions log prob and entropy for current batch of transitions
             # Note: we need to do this because we updated the policy with the new parameters
-            # -- actor
-            self.policy.act(obs_batch, masks=masks_batch, hidden_states=hid_states_batch[0])
-            actions_log_prob_batch = self.policy.get_actions_log_prob(actions_batch)
-            # -- critic
-            value_batch = self.policy.evaluate(obs_batch, masks=masks_batch, hidden_states=hid_states_batch[1])
+            if getattr(self.policy, "critic_encoder_stop_grad", False):
+                # Recompute once with current parameters; GLAD shares this
+                # minibatch's exact sampled terrain selection across both heads.
+                _, value_batch = self.policy.act_and_evaluate(obs_batch)
+                actions_log_prob_batch = self.policy.get_actions_log_prob(actions_batch)
+            else:
+                self.policy.act(obs_batch, masks=masks_batch, hidden_states=hid_states_batch[0])
+                actions_log_prob_batch = self.policy.get_actions_log_prob(actions_batch)
+                value_batch = self.policy.evaluate(obs_batch, masks=masks_batch, hidden_states=hid_states_batch[1])
             # -- entropy
             # we only keep the entropy of the first augmentation (the original one)
             mu_batch = self.policy.action_mean[:original_batch_size]
