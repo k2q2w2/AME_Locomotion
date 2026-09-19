@@ -2,6 +2,26 @@ import gymnasium as gym
 from ame_locomotion.tasks.manager_based.ame_locomotion import agents
 
 gym.register(
+    id="AME-G1-29DOF-GLAD-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.lsio_env_cfg:G1LSIOEnvCfg",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.ame_rsl_rl_ppo_cfg:G1AMEGLADPPORunnerCfg",
+    },
+)
+
+gym.register(
+    id="AME-G1-29DOF-GLAD-Play-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.lsio_env_cfg:G1LSIOEnvCfg_PLAY",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.ame_rsl_rl_ppo_cfg:G1AMEGLADPPORunnerCfg",
+    },
+)
+
+gym.register(
     id="AME-G1-29DOF-LSIO-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,

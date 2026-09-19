@@ -26,6 +26,9 @@ AME 的主要网络实现在:
 新增 Actor 双历史任务 `AME-G1-29DOF-LSIO-v0` / `AME-G1-29DOF-LSIO-Play-v0`，
 参见 [LSIO 启动、网络结构与验证说明](docs/lsio.md)。原 AME 任务及检查点保持兼容。
 
+新增 `AME-G1-29DOF-GLAD-v0` / `AME-G1-29DOF-GLAD-Play-v0`：Actor/Critic 共享 GLAD
+地形编码器，Actor 保留 LSIO 双历史；参见 [GLAD 启动、结构与验证说明](docs/glad.md)。
+
 该文件包含:
 
 - 地形图卷积特征提取

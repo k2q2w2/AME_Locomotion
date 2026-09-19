@@ -58,3 +58,24 @@ class G1AMELSIOPPORunnerCfg(G1AMEPPORunnerCfg):
         critic_hidden_dims=[512, 256, 128],
         activation="elu",
     )
+
+
+@configclass
+class GLADActorCriticCfg(LSIOActorCriticCfg):
+    class_name: str = "ActorCriticEncoderGLAD"
+    attach_global: bool = True
+    top_k: int = 32
+    gumbel_temperature: float = 1.0
+
+
+@configclass
+class G1AMEGLADPPORunnerCfg(G1AMELSIOPPORunnerCfg):
+    experiment_name = "g1_ame_glad"
+    policy = GLADActorCriticCfg(
+        init_noise_std=1.0,
+        actor_obs_normalization=False,
+        critic_obs_normalization=False,
+        actor_hidden_dims=[512, 256, 128],
+        critic_hidden_dims=[512, 256, 128],
+        activation="elu",
+    )
