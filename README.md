@@ -68,6 +68,19 @@ python -m pip install -e rsl_rl
 bash run_train.sh
 ```
 
+单机多卡训练（默认双卡，每卡 2048 个环境）:
+
+```bash
+CUDA_VISIBLE_DEVICES=0,1 bash run_train_multi_gpu.sh
+```
+
+通过 `NPROC_PER_NODE` 设置 GPU 进程数，`NUM_ENVS` 设置每卡环境数量；进程数应与选用的 GPU 数量一致。其他训练参数可以追加在脚本后面，例如四卡训练:
+
+```bash
+CUDA_VISIBLE_DEVICES=0,1,2,3 NPROC_PER_NODE=4 NUM_ENVS=1024 \
+  bash run_train_multi_gpu.sh --run_name four_gpu --max_iterations 15000
+```
+
 测试与可视化:
 
 ```bash
@@ -171,6 +184,19 @@ Train:
 
 ```bash
 bash run_train.sh
+```
+
+Single-node multi-GPU training (defaults to two GPUs, 2048 environments per GPU):
+
+```bash
+CUDA_VISIBLE_DEVICES=0,1 bash run_train_multi_gpu.sh
+```
+
+Set `NPROC_PER_NODE` to the number of selected GPUs and `NUM_ENVS` to the environment count per GPU. Additional training arguments can be appended to the script. For example, to use four GPUs:
+
+```bash
+CUDA_VISIBLE_DEVICES=0,1,2,3 NPROC_PER_NODE=4 NUM_ENVS=1024 \
+  bash run_train_multi_gpu.sh --run_name four_gpu --max_iterations 15000
 ```
 
 Play / evaluate:
