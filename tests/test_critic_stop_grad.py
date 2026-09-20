@@ -438,6 +438,11 @@ def test_all_train_play_registrations_reuse_original_environments():
             assert new["disable_env_checker"] == base["disable_env_checker"]
             assert new["kwargs"]["env_cfg_entry_point"] == base["kwargs"]["env_cfg_entry_point"]
             assert new["kwargs"]["rsl_rl_cfg_entry_point"].endswith(f":{runner_name}CriticStopGradPPORunnerCfg")
+    for suffix in ("v0", "Play-v0"):
+        base = registrations[f"AME-G1-29DOF-GLAD-{suffix}"]
+        new = registrations[f"AME-G1-29DOF-GLAD-CriticCleanStopGrad-{suffix}"]
+        assert new["kwargs"]["env_cfg_entry_point"] == base["kwargs"]["env_cfg_entry_point"]
+        assert new["kwargs"]["rsl_rl_cfg_entry_point"].endswith(":G1AMEGLADCriticCleanStopGradPPORunnerCfg")
 
 
 def test_native_configs_only_change_mode_and_experiment():
@@ -466,3 +471,10 @@ def test_native_configs_only_change_mode_and_experiment():
         cfg.from_dict({"policy": {"attach_global": True}})
         assert cfg.policy.attach_global is True
         assert base_cls().to_dict()["policy"].get("critic_encoder_stop_grad", False) is False
+    expected = agent.G1AMEGLADPPORunnerCfg().to_dict()
+    expected["experiment_name"] = "g1_ame_glad_critic_clean_stop_grad"
+    expected["policy"].update(critic_encoder_stop_grad=True, critic_feature_source="critic")
+    clean = agent.G1AMEGLADCriticCleanStopGradPPORunnerCfg()
+    assert clean.to_dict() == expected
+    assert clean.resume is False
+    assert isinstance(clean, agent.G1AMEGLADPPORunnerCfg)

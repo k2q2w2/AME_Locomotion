@@ -302,7 +302,7 @@ class OnPolicyRunner:
         }
         if getattr(self.alg.policy, "critic_encoder_stop_grad", False):
             saved_dict["critic_encoder_stop_grad"] = True
-            saved_dict["critic_feature_source"] = "actor"
+            saved_dict["critic_feature_source"] = self.alg.policy.critic_feature_source
         # -- Save RND model if used
         if hasattr(self.alg, "rnd") and self.alg.rnd:
             saved_dict["rnd_state_dict"] = self.alg.rnd.state_dict()
@@ -325,10 +325,12 @@ class OnPolicyRunner:
                 "Use a checkpoint from the same training mode and configuration; "
                 "legacy checkpoints without this field use False."
             )
-        if policy_stop_grad and loaded_dict.get("critic_feature_source") != "actor":
+        if policy_stop_grad and loaded_dict.get("critic_feature_source") != self.alg.policy.critic_feature_source:
             raise ValueError(
-                "Checkpoint critic_feature_source mismatch: this task requires 'actor'. "
-                "Older CriticStopGrad checkpoints used a separate Critic query and cannot be resumed."
+                "Checkpoint critic_feature_source mismatch: "
+                f"this task requires {self.alg.policy.critic_feature_source!r}, "
+                f"checkpoint has {loaded_dict.get('critic_feature_source')!r}. "
+                "Cross-mode and older unmarked CriticStopGrad checkpoints cannot be resumed."
             )
         # -- Load model
         resumed_training = self.alg.policy.load_state_dict(loaded_dict["model_state_dict"])

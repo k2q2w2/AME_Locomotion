@@ -31,6 +31,7 @@ class ActorCriticEncoder(nn.Module):
         cnn_downsample=True,
         attach_global=False,  # Add max-pooled global feature to query and policy input
         critic_encoder_stop_grad=False,
+        critic_feature_source=None,
         **kwargs,
     ):
         if kwargs:
@@ -47,6 +48,13 @@ class ActorCriticEncoder(nn.Module):
         self.cnn_downsample = cnn_downsample
         self.attach_global = attach_global
         self.critic_encoder_stop_grad = critic_encoder_stop_grad
+        if critic_feature_source is None:
+            critic_feature_source = "actor" if critic_encoder_stop_grad else "critic"
+        if critic_feature_source not in ("actor", "critic"):
+            raise ValueError("critic_feature_source must be 'actor', 'critic', or None.")
+        if not critic_encoder_stop_grad and critic_feature_source != "critic":
+            raise ValueError("Actor terrain features require critic_encoder_stop_grad=True.")
+        self.critic_feature_source = critic_feature_source
 
         # Option A: concatenate coordinates to CNN features
         # self.cnn_output_dim = mha_dim - 3  # d-3
@@ -77,8 +85,8 @@ class ActorCriticEncoder(nn.Module):
 
         self._build_terrain_encoder(self.actor_proprio_dim, self.critic_proprio_dim, self.attach_global)
         if self.critic_encoder_stop_grad:
-            # Retain the legacy state_dict layout, but this projection is unused
-            # when the Critic consumes detached Actor features.
+            # Keep the state_dict layout. Actor-source mode leaves this unused;
+            # Critic-source mode uses a fixed projection without value gradients.
             self.critic_proprio_embedding.requires_grad_(False)
 
         actor_input_dim = mha_dim + self.actor_proprio_dim
@@ -277,8 +285,8 @@ class ActorCriticEncoder(nn.Module):
         return self.distribution.sample()
 
     def act_and_evaluate(self, obs, **kwargs):
-        """Sample an action and reuse that same encoding for the ablation value."""
-        if not self.critic_encoder_stop_grad:
+        """Sample actions, reusing terrain encoding only for Actor-source values."""
+        if not self.critic_encoder_stop_grad or self.critic_feature_source == "critic":
             return self.act(obs, **kwargs), self.evaluate(obs, **kwargs)
         actor_obs = self.actor_obs_normalizer(self.get_actor_obs(obs))
         terrain_features = self.update_distribution(actor_obs)
@@ -292,15 +300,23 @@ class ActorCriticEncoder(nn.Module):
         return self.actor(encoded_obs), attention_weights
 
     def evaluate(self, obs, actor_terrain_features=None, **kwargs):
-        """Evaluate privileged state using either Actor features or the original Critic encoder.
+        """Evaluate privileged state with the configured terrain feature source.
 
         Explicit features must come from the current observations. No feature
-        cache is kept: standalone/bootstrap calls encode the Actor observations
-        under no_grad, preserving train/eval behavior without writing BN state.
+        cache is kept. Stop-grad paths encode the configured observations under
+        no_grad, preserving train/eval behavior without writing BN state.
         """
         critic_obs = self.get_critic_obs(obs)
         critic_obs = self.critic_obs_normalizer(critic_obs)
-        if self.critic_encoder_stop_grad:
+        if self.critic_encoder_stop_grad and self.critic_feature_source == "critic":
+            if actor_terrain_features is not None:
+                raise ValueError("Actor terrain features require critic_feature_source='actor'.")
+            with torch.no_grad():
+                critic_encoded, _ = self._encode_terrain(critic_obs, role="critic", update_buffers=False)
+                terrain_features = critic_encoded[:, :-self.critic_proprio_dim]
+            critic_proprio = critic_obs[:, :-self.L * self.W * self.coord_dim]
+            encoded_obs = torch.cat((terrain_features.detach(), critic_proprio), dim=-1)
+        elif self.critic_encoder_stop_grad:
             if actor_terrain_features is None:
                 with torch.no_grad():
                     actor_obs = self.actor_obs_normalizer(self.get_actor_obs(obs))

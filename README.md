@@ -29,6 +29,10 @@ AME 的主要网络实现在:
 新增 `AME-G1-29DOF-GLAD-v0` / `AME-G1-29DOF-GLAD-Play-v0`：Actor/Critic 共享 GLAD
 地形编码器，Actor 保留 LSIO 双历史；参见 [GLAD 启动、结构与验证说明](docs/glad.md)。
 
+新增 `AME-G1-29DOF-GLAD-CriticCleanStopGrad-v0` 及对应 Play 任务：Critic 使用自己的干净
+地形和私有 Query，编码后 detach，仅价值 MLP 接受价值损失梯度。
+参见 [干净 Critic 特征消融说明](docs/critic_clean_stop_grad.md)。
+
 该文件包含:
 
 - 地形图卷积特征提取
@@ -89,6 +93,17 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 NPROC_PER_NODE=4 NUM_ENVS=1024 \
 ```bash
 bash run_play.sh
 ```
+
+也可传入完整的 Play 参数（此时不使用脚本的默认任务和检查点）：
+
+```bash
+bash run_play.sh --task AME-G1-29DOF-GLAD-Play-v0 \
+  --checkpoint /absolute/path/to/model.pt --num_envs 1 --seed 42 --real-time
+```
+
+`run_play.sh` 使用当前环境的 Python，可通过 `PYTHON=/path/to/python` 覆盖。
+在 Conda 环境中，脚本会预加载该环境的 `libstdc++.so.6`，避免 Isaac Sim 先加载
+系统旧版 C++ 库后出现 `CXXABI_1.3.15 not found`。这仅影响当前 Play 进程，不修改系统库。
 
 ### 两阶段训练说明
 
