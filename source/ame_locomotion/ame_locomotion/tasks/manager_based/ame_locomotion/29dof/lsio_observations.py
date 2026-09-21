@@ -34,7 +34,12 @@ class LSIOObservationsCfg:
     critic: ObservationGroupCfg = None
 
 
-def make_lsio_observations(observations):
+@configclass
+class LSIOCleanActorObservationsCfg(LSIOObservationsCfg):
+    clean_proprio_history: LSIOHistoryCfg = LSIOHistoryCfg()
+
+
+def make_lsio_observations(observations, *, include_clean_history=False):
     """Split the already configured AME observations, preserving stage/play noise.
 
     Isaac Lab applies noise and scaling before appending to native term histories.
@@ -42,7 +47,7 @@ def make_lsio_observations(observations):
     reset fills just the reset environments with their first new frame.
     """
     source = observations.policy
-    result = LSIOObservationsCfg()
+    result = LSIOCleanActorObservationsCfg() if include_clean_history else LSIOObservationsCfg()
     for name in ("velocity_commands", "height_scan"):
         setattr(result.policy, name, deepcopy(getattr(source, name)))
     for name in ("base_ang_vel", "projected_gravity", "joint_pos", "joint_vel", "actions"):
@@ -50,4 +55,11 @@ def make_lsio_observations(observations):
     result.policy.enable_corruption = source.enable_corruption
     result.proprio_history.enable_corruption = source.enable_corruption
     result.critic = deepcopy(observations.critic)
+    if include_clean_history:
+        for name in ("base_ang_vel", "projected_gravity", "joint_pos", "joint_vel", "actions"):
+            term = deepcopy(getattr(observations.critic, name))
+            term.noise = None
+            setattr(result.clean_proprio_history, name, term)
+        result.clean_proprio_history.enable_corruption = False
+        result.clean_proprio_history.history_length = result.proprio_history.history_length
     return result

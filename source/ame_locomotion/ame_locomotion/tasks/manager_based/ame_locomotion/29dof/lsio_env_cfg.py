@@ -18,3 +18,17 @@ class G1LSIOEnvCfg_PLAY(G1RoughEnvCfg_PLAY):
     def __post_init__(self):
         super().__post_init__()
         self.observations = make_lsio_observations(self.observations)
+
+
+@configclass
+class G1LSIOCleanActorEnvCfg(G1RoughEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.observations = make_lsio_observations(self.observations, include_clean_history=True)
+
+
+@configclass
+class G1LSIOCleanActorEnvCfg_PLAY(G1RoughEnvCfg_PLAY):
+    def __post_init__(self):
+        super().__post_init__()
+        self.observations = make_lsio_observations(self.observations, include_clean_history=True)

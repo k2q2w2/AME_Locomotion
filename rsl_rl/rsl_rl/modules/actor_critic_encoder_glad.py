@@ -1,4 +1,4 @@
-"""GLAD terrain encoding shared by actor/critic, with actor-only LSIO history.
+"""GLAD terrain encoding with LSIO and optional clean Actor features for values.
 
 Fu et al., arXiv:2606.00637v3, Sec. III-D and IV-A: attention pooling
 summarizes all terrain tokens; saliency selection retains sparse keys/values
@@ -14,6 +14,8 @@ from .actor_critic_encoder_lsio import ActorCriticEncoderLSIO
 
 
 class ActorCriticEncoderGLAD(ActorCriticEncoderLSIO):
+    critic_feature_sources = ("actor", "critic", "actor_clean")
+
     def __init__(
         self,
         obs,
@@ -34,6 +36,29 @@ class ActorCriticEncoderGLAD(ActorCriticEncoderLSIO):
         self.top_k = top_k
         self.gumbel_temperature = float(gumbel_temperature)
         super().__init__(obs, obs_groups, num_actions, attach_global=True, **kwargs)
+        if self.critic_feature_source == "actor_clean":
+            groups = obs_groups.get("clean_history", [])
+            if len(groups) != 1 or groups[0] not in obs:
+                raise ValueError("actor_clean requires obs_groups['clean_history'] to name a clean history group.")
+            self.clean_history_group = groups[0]
+            if self.clean_history_group == self.history_group:
+                raise ValueError("actor_clean requires a separate clean history observation group.")
+            self._validate_history(obs[self.clean_history_group])
+            # Current Critic layout: v, omega, gravity, command, q, dq, previous action.
+            if self.critic_proprio_dim != 12 + 3 * num_actions:
+                raise ValueError("actor_clean requires the standard Critic proprioception layout.")
+
+    def get_clean_actor_obs(self, obs):
+        """Use Actor LSIO parameters with clean history, commands and XYZ map.
+
+        Called inside the value path's no_grad context. Do not call act() or
+        update_distribution(): bootstrap must preserve the current policy.
+        """
+        critic_obs = self.get_critic_obs(obs)
+        long_features, short_features = self._encode_history(obs[self.clean_history_group])
+        commands = critic_obs[:, 9:12]
+        terrain = critic_obs[:, self.critic_proprio_dim:]
+        return torch.cat((long_features, short_features, commands, terrain), dim=-1)
 
     def _build_terrain_encoder(self, actor_proprio_dim, critic_proprio_dim, attach_global):
         if self.coord_dim != 3:
@@ -96,7 +121,9 @@ class ActorCriticEncoderGLAD(ActorCriticEncoderLSIO):
     def get_extra_state(self):
         state = super().get_extra_state()
         state.update(
-            architecture="glad_lsio_v1",
+            architecture=(
+                "glad_lsio_clean_actor_v1" if self.critic_feature_source == "actor_clean" else "glad_lsio_v1"
+            ),
             top_k=self.top_k,
             gumbel_temperature=self.gumbel_temperature,
         )

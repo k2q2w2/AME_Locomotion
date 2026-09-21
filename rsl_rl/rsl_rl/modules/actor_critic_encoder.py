@@ -10,6 +10,7 @@ from rsl_rl.networks import EmpiricalNormalization, MLP
 
 class ActorCriticEncoder(nn.Module):
     is_recurrent = False
+    critic_feature_sources = ("actor", "critic")
 
     def __init__(
         self,
@@ -50,8 +51,8 @@ class ActorCriticEncoder(nn.Module):
         self.critic_encoder_stop_grad = critic_encoder_stop_grad
         if critic_feature_source is None:
             critic_feature_source = "actor" if critic_encoder_stop_grad else "critic"
-        if critic_feature_source not in ("actor", "critic"):
-            raise ValueError("critic_feature_source must be 'actor', 'critic', or None.")
+        if critic_feature_source not in self.critic_feature_sources:
+            raise ValueError(f"critic_feature_source must be one of {self.critic_feature_sources}, or None.")
         if not critic_encoder_stop_grad and critic_feature_source != "critic":
             raise ValueError("Actor terrain features require critic_encoder_stop_grad=True.")
         self.critic_feature_source = critic_feature_source
@@ -85,7 +86,7 @@ class ActorCriticEncoder(nn.Module):
 
         self._build_terrain_encoder(self.actor_proprio_dim, self.critic_proprio_dim, self.attach_global)
         if self.critic_encoder_stop_grad:
-            # Keep the state_dict layout. Actor-source mode leaves this unused;
+            # Keep the state_dict layout. Actor-source modes leave this unused;
             # Critic-source mode uses a fixed projection without value gradients.
             self.critic_proprio_embedding.requires_grad_(False)
 
@@ -286,7 +287,7 @@ class ActorCriticEncoder(nn.Module):
 
     def act_and_evaluate(self, obs, **kwargs):
         """Sample actions, reusing terrain encoding only for Actor-source values."""
-        if not self.critic_encoder_stop_grad or self.critic_feature_source == "critic":
+        if not self.critic_encoder_stop_grad or self.critic_feature_source != "actor":
             return self.act(obs, **kwargs), self.evaluate(obs, **kwargs)
         actor_obs = self.actor_obs_normalizer(self.get_actor_obs(obs))
         terrain_features = self.update_distribution(actor_obs)
@@ -308,7 +309,16 @@ class ActorCriticEncoder(nn.Module):
         """
         critic_obs = self.get_critic_obs(obs)
         critic_obs = self.critic_obs_normalizer(critic_obs)
-        if self.critic_encoder_stop_grad and self.critic_feature_source == "critic":
+        if self.critic_encoder_stop_grad and self.critic_feature_source == "actor_clean":
+            if actor_terrain_features is not None:
+                raise ValueError("Actor terrain features require critic_feature_source='actor'.")
+            with torch.no_grad():
+                clean_actor_obs = self.get_clean_actor_obs(obs)
+                clean_encoded, _ = self._encode_terrain(clean_actor_obs, role="actor", update_buffers=False)
+                terrain_features = clean_encoded[:, :-self.actor_proprio_dim]
+            critic_proprio = critic_obs[:, :-self.L * self.W * self.coord_dim]
+            encoded_obs = torch.cat((terrain_features.detach(), critic_proprio), dim=-1)
+        elif self.critic_encoder_stop_grad and self.critic_feature_source == "critic":
             if actor_terrain_features is not None:
                 raise ValueError("Actor terrain features require critic_feature_source='actor'.")
             with torch.no_grad():

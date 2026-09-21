@@ -1,4 +1,4 @@
-"""AME with an actor-only long/short I/O history (LSIO) encoder.
+"""AME with a long/short I/O history (LSIO) encoder for Actor observations.
 
 Li et al., arXiv:2401.16889, Sec. V: temporal convolutions encode long
 history while recent I/O samples bypass the encoder. This adapts that
@@ -68,12 +68,16 @@ class ActorCriticEncoderLSIO(ActorCriticEncoder):
         if history.ndim != 3 or tuple(history.shape[1:]) != expected:
             raise ValueError(f"LSIO history must have shape [batch, {expected[0]}, {expected[1]}], got {history.shape}.")
 
-    def get_actor_obs(self, obs):
-        current = super().get_actor_obs(obs)
-        history = obs[self.history_group]
+    def _encode_history(self, history):
+        """Shared LSIO computation for observed and optional clean histories."""
         self._validate_history(history)
         long_features = self.history_encoder(history.transpose(1, 2))
         short_features = history[:, -self.short_history_length:, :].flatten(start_dim=1)
+        return long_features, short_features
+
+    def get_actor_obs(self, obs):
+        current = super().get_actor_obs(obs)
+        long_features, short_features = self._encode_history(obs[self.history_group])
         # Preserve the map-at-tail convention used by the shared terrain encoder.
         return torch.cat((long_features, short_features, current), dim=-1)
 

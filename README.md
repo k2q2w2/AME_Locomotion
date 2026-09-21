@@ -33,6 +33,10 @@ AME 的主要网络实现在:
 地形和私有 Query，编码后 detach，仅价值 MLP 接受价值损失梯度。
 参见 [干净 Critic 特征消融说明](docs/critic_clean_stop_grad.md)。
 
+新增 `AME-G1-29DOF-GLAD-CriticCleanActorStopGrad-v0` 及对应 Play 任务：干净本体历史与
+干净地图复用 Actor 编码路径，地形特征 detach 后送入价值 MLP，不使用 Critic 私有投影。
+参见 [干净观测复用 Actor 编码器的消融说明](docs/critic_clean_actor_stop_grad.md)。
+
 该文件包含:
 
 - 地形图卷积特征提取

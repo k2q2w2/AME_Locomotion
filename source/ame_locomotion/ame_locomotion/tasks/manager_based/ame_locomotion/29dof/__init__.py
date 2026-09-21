@@ -3,6 +3,17 @@ from ame_locomotion.tasks.manager_based.ame_locomotion import agents
 
 for play in (False, True):
     gym.register(
+        id=f"AME-G1-29DOF-GLAD-CriticCleanActorStopGrad{'-Play' if play else ''}-v0",
+        entry_point="isaaclab.envs:ManagerBasedRLEnv",
+        disable_env_checker=True,
+        kwargs={
+            "env_cfg_entry_point": f"{__name__}.lsio_env_cfg:G1LSIOCleanActorEnvCfg{'_PLAY' if play else ''}",
+            "rsl_rl_cfg_entry_point": f"{agents.__name__}.ame_rsl_rl_ppo_cfg:G1AMEGLADCriticCleanActorStopGradPPORunnerCfg",
+        },
+    )
+
+for play in (False, True):
+    gym.register(
         id=f"AME-G1-29DOF-GLAD-CriticCleanStopGrad{'-Play' if play else ''}-v0",
         entry_point="isaaclab.envs:ManagerBasedRLEnv",
         disable_env_checker=True,

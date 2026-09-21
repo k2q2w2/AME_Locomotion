@@ -124,3 +124,18 @@ class GLADCriticCleanStopGradActorCriticCfg(GLADCriticStopGradActorCriticCfg):
 class G1AMEGLADCriticCleanStopGradPPORunnerCfg(G1AMEGLADPPORunnerCfg):
     experiment_name = "g1_ame_glad_critic_clean_stop_grad"
     policy = GLADCriticCleanStopGradActorCriticCfg(**G1AMEGLADPPORunnerCfg().policy.to_dict())
+
+
+@configclass
+class GLADCriticCleanActorStopGradActorCriticCfg(GLADCriticStopGradActorCriticCfg):
+    critic_feature_source: str = "actor_clean"
+
+
+@configclass
+class G1AMEGLADCriticCleanActorStopGradPPORunnerCfg(G1AMEGLADPPORunnerCfg):
+    experiment_name = "g1_ame_glad_critic_clean_actor_stop_grad"
+    obs_groups = {
+        **G1AMEGLADPPORunnerCfg().obs_groups,
+        "clean_history": ["clean_proprio_history"],
+    }
+    policy = GLADCriticCleanActorStopGradActorCriticCfg(**G1AMEGLADPPORunnerCfg().policy.to_dict())

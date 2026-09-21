@@ -251,8 +251,8 @@ class PPO:
             # Recompute actions log prob and entropy for current batch of transitions
             # Note: we need to do this because we updated the policy with the new parameters
             if getattr(self.policy, "critic_encoder_stop_grad", False):
-                # Recompute once with current parameters; GLAD shares this
-                # minibatch's exact sampled terrain selection across both heads.
+                # Recompute with current parameters. Only Actor-source values
+                # reuse the action path's terrain selection; clean paths encode separately.
                 _, value_batch = self.policy.act_and_evaluate(obs_batch)
                 actions_log_prob_batch = self.policy.get_actions_log_prob(actions_batch)
             else:
